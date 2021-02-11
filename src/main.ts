@@ -6,6 +6,7 @@ const io = new Server(PORT, {
 });
 
 type Player = "O" | "X";
+type Spectator = "S";
 type Result = Player | "D";
 type GameState = {
   score: {
@@ -14,6 +15,7 @@ type GameState = {
     D: number;
   };
   players: { O: string; X: string };
+  spectators: string[];
   currentPlayer: Player;
   firstPlayer: Player;
   gameOver: boolean;
@@ -40,6 +42,7 @@ const initialGameState: GameState = {
     D: 0,
   },
   players: { O: "", X: "" },
+  spectators: [],
   currentPlayer: "O",
   firstPlayer: "O",
   gameOver: false,
@@ -113,14 +116,23 @@ const cancelResetRequest = () => {
 
 io.on("connection", (socket: Socket) => {
   console.log("New connection id:", socket.id);
-  const me: Player = gameState.players.O ? "X" : "O";
+  const me: Player | Spectator = gameState.players.O
+    ? gameState.players.X
+      ? "S"
+      : "X"
+    : "O";
   socket.emit("setup", {
     tiles: gameState.tiles,
     currentPlayer: gameState.currentPlayer,
     role: me,
   });
-  gameState.players[me] = socket.id;
-  console.log("Player assigned:", me, socket.id);
+  if (me !== "S") {
+    gameState.players[me] = socket.id;
+    console.log("Player assigned:", me, socket.id);
+  } else {
+    gameState.spectators.push(socket.id);
+    console.log("New spectator:", me, socket.id);
+  }
 
   socket.on("message", data => {
     console.log("Message received from", socket.id, data);
