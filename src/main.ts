@@ -87,7 +87,7 @@ const resetAll = () => {
   resetGame();
 };
 
-const startResetRequest = (id: string, event: string) => {
+const startResetRequest = (id: string) => {
   resetRequestedBy = id;
   const opponent =
     gameState.players.X === id ? gameState.players.O : gameState.players.X;
@@ -116,12 +116,11 @@ io.on("connection", (socket: Socket) => {
     if (data === "new-game" && !newGameResponses.includes(socket.id))
       newGameResponses.push(socket.id);
     if (newGameResponses.length === 2) resetGame();
-    // if (newGameResponses.length === 1) alertOpponent(socket.id, data);
 
     if (data === "surrender") surrender(socket.id);
 
     if (data === "reset-start") {
-      if (!resetRequestedBy) startResetRequest(socket.id, data);
+      if (!resetRequestedBy) startResetRequest(socket.id);
       else if (resetRequestedBy !== socket.id) resetAll();
     }
     if (data === "reset-confirm") resetAll();
