@@ -1,11 +1,25 @@
 {
   "compilerOptions": {
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": "./src",
+    "declaration": false,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "lib": ["es6", "dom", "es2015", "esnext"],
     "module": "commonjs",
-    "esModuleInterop": true,
-    "target": "es6",
-    "moduleResolution": "node",
+    "noImplicitAny": false,
+    "noLib": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "outDir": "./dist",
+    "removeComments": true,
+    "skipLibCheck": true,
     "sourceMap": true,
-    "outDir": "dist"
+    "target": "es6",
+    "types": ["node"],
+    "typeRoots": ["./types"]
   },
-  "lib": ["es2015"]
+  "include": ["src/**/*"],
+  "exclude": ["**/node_modules/**/*"]
 }
