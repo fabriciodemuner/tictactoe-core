@@ -78,14 +78,19 @@ const resetGame = () => {
   resetRequestedBy = "";
 };
 
+const messagePlayer = (id: string, event: string) => {
+  io.sockets.to(id).emit(event);
+};
+const messageAll = (event: string) => io.sockets.emit(event);
+
 const surrender = (id: string) => {
   const opponent =
     gameState.players.X === id ? gameState.players.O : gameState.players.X;
   const result = gameState.players.X === id ? "O" : "X";
   addPoint(result);
   gameState.freeze = true;
-  io.sockets.to(id).emit("freeze");
-  io.sockets.to(opponent).emit("opp-surrender");
+  messagePlayer(id, "freeze");
+  messagePlayer(opponent, "opp-surrender");
 };
 
 const resetAll = () => {
@@ -97,13 +102,13 @@ const startResetRequest = (id: string) => {
   resetRequestedBy = id;
   const opponent =
     gameState.players.X === id ? gameState.players.O : gameState.players.X;
-  io.sockets.to(id).emit("freeze");
-  io.sockets.to(opponent).emit("reset-start");
+  messagePlayer(id, "freeze");
+  messagePlayer(opponent, "reset-start");
 };
 
 const cancelResetRequest = () => {
   resetRequestedBy = "";
-  io.sockets.emit("reset-cancel");
+  messageAll("reset-cancel");
 };
 
 io.on("connection", (socket: Socket) => {
@@ -116,7 +121,6 @@ io.on("connection", (socket: Socket) => {
   });
   gameState.players[me] = socket.id;
   console.log("Player assigned:", me, socket.id);
-  io.sockets.emit("new-user", `New user connected ${socket.id}`);
 
   socket.on("message", data => {
     console.log("Message received from", socket.id, data);
@@ -144,7 +148,6 @@ io.on("connection", (socket: Socket) => {
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
     gameState.players[me] = "";
-    io.sockets.emit("user-disconnected", `User disconnected ${socket.id}`);
   });
 });
 
