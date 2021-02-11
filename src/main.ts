@@ -1,6 +1,6 @@
 import { Server, Socket } from "socket.io";
 
-const PORT = 5000;
+const PORT = Number(process.env.PORT) || 5000;
 const CLIENT = "http://localhost:5001";
 const io = new Server(PORT, {
   cors: { origin: CLIENT },
