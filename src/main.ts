@@ -97,6 +97,7 @@ const startResetRequest = (id: string) => {
   resetRequestedBy = id;
   const opponent =
     gameState.players.X === id ? gameState.players.O : gameState.players.X;
+  io.sockets.to(id).emit("freeze");
   io.sockets.to(opponent).emit("reset-start");
 };
 
