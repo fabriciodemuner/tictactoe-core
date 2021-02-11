@@ -17,6 +17,8 @@ type GameState = {
   currentPlayer: Player;
   firstPlayer: Player;
   gameOver: boolean;
+  freeze: boolean;
+  surrender: boolean;
   result: Result;
   tiles: {
     1: Player;
@@ -41,6 +43,8 @@ const initialGameState: GameState = {
   currentPlayer: "O",
   firstPlayer: "O",
   gameOver: false,
+  freeze: false,
+  surrender: false,
   result: undefined,
   tiles: {
     1: undefined,
@@ -66,6 +70,8 @@ const resetGame = () => {
   const nextPlayer: Player = gameState.firstPlayer === "O" ? "X" : "O";
   gameState.firstPlayer = nextPlayer;
   gameState.currentPlayer = nextPlayer;
+  gameState.surrender = initialGameState.surrender;
+  gameState.freeze = initialGameState.freeze;
   console.log("New game started");
   io.sockets.emit("game-state", gameState);
   while (newGameResponses.length) newGameResponses.pop();
@@ -76,9 +82,10 @@ const surrender = (id: string) => {
   const opponent =
     gameState.players.X === id ? gameState.players.O : gameState.players.X;
   const result = gameState.players.X === id ? "O" : "X";
-  io.sockets.to(opponent).emit("teste", "1, 2, 3");
   addPoint(result);
-  resetGame();
+  gameState.freeze = true;
+  io.sockets.to(id).emit("freeze");
+  io.sockets.to(opponent).emit("opp-surrender");
 };
 
 const resetAll = () => {
@@ -117,6 +124,7 @@ io.on("connection", (socket: Socket) => {
     if (newGameResponses.length === 2) resetGame();
 
     if (data === "surrender") surrender(socket.id);
+    if (data === "surrender-ok") resetGame();
 
     if (data === "reset-start") {
       if (!resetRequestedBy) startResetRequest(socket.id);
