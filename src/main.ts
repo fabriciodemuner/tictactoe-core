@@ -177,6 +177,9 @@ io.on("connection", (socket: Socket) => {
     } else if (gameState.spectators.length) {
       moveSpectatorsQueue(socket.id);
       resetAll();
+    } else {
+      const myRole: Player = gameState.players.O === socket.id ? "O" : "X";
+      gameState.players[myRole] = "";
     }
   });
 });
