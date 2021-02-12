@@ -6,6 +6,7 @@ const io = new Server(PORT, {
 });
 
 type Player = "O" | "X";
+type Role = Player | "S";
 type Result = Player | "D";
 type GameState = {
   score: {
@@ -14,6 +15,7 @@ type GameState = {
     D: number;
   };
   players: { O: string; X: string };
+  spectators: string[];
   currentPlayer: Player;
   firstPlayer: Player;
   gameOver: boolean;
@@ -40,6 +42,7 @@ const initialGameState: GameState = {
     D: 0,
   },
   players: { O: "", X: "" },
+  spectators: [],
   currentPlayer: "O",
   firstPlayer: "O",
   gameOver: false,
@@ -111,16 +114,37 @@ const cancelResetRequest = () => {
   messageAll("reset-cancel");
 };
 
+const moveSpectatorsQueue = (disconnected: string) => {
+  const nextPlayer = gameState.spectators.shift();
+  const role: Player = gameState.players.O === disconnected ? "O" : "X";
+  gameState.players[role] = nextPlayer;
+  console.log("Player assigned:", role, nextPlayer);
+  io.to(nextPlayer).emit("setup", {
+    tiles: gameState.tiles,
+    currentPlayer: gameState.currentPlayer,
+    role,
+  });
+};
+
 io.on("connection", (socket: Socket) => {
   console.log("New connection id:", socket.id);
-  const me: Player = gameState.players.O ? "X" : "O";
+  const role: Role = gameState.players.O
+    ? gameState.players.X
+      ? "S"
+      : "X"
+    : "O";
   socket.emit("setup", {
     tiles: gameState.tiles,
     currentPlayer: gameState.currentPlayer,
-    role: me,
+    role,
   });
-  gameState.players[me] = socket.id;
-  console.log("Player assigned:", me, socket.id);
+  if (role !== "S") {
+    gameState.players[role] = socket.id;
+    console.log("Player assigned:", role, socket.id);
+  } else {
+    gameState.spectators.push(socket.id);
+    console.log("New spectator:", role, socket.id);
+  }
 
   socket.on("message", data => {
     console.log("Message received from", socket.id, data);
@@ -147,7 +171,13 @@ io.on("connection", (socket: Socket) => {
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
-    gameState.players[me] = "";
+    if (gameState.spectators.includes(socket.id)) {
+      const idx = gameState.spectators.indexOf(socket.id);
+      gameState.spectators.splice(idx, 1);
+    } else if (gameState.spectators.length) {
+      moveSpectatorsQueue(socket.id);
+      resetAll();
+    }
   });
 });
 
