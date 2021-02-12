@@ -114,6 +114,18 @@ const cancelResetRequest = () => {
   messageAll("reset-cancel");
 };
 
+const moveSpectatorsQueue = (disconnected: string) => {
+  const nextPlayer = gameState.spectators.shift();
+  const role: Player = gameState.players.O === disconnected ? "O" : "X";
+  gameState.players[role] = nextPlayer;
+  console.log("Player assigned:", role, nextPlayer);
+  io.to(nextPlayer).emit("setup", {
+    tiles: gameState.tiles,
+    currentPlayer: gameState.currentPlayer,
+    role,
+  });
+};
+
 io.on("connection", (socket: Socket) => {
   console.log("New connection id:", socket.id);
   const me: Player | Spectator = gameState.players.O
@@ -159,7 +171,13 @@ io.on("connection", (socket: Socket) => {
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
-    gameState.players[me] = "";
+    if (gameState.spectators.includes(socket.id)) {
+      const idx = gameState.spectators.indexOf(socket.id);
+      gameState.spectators.splice(idx, 1);
+    } else if (gameState.spectators.length) {
+      moveSpectatorsQueue(socket.id);
+      resetAll();
+    }
   });
 });
 
