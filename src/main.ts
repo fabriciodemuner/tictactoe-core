@@ -148,8 +148,10 @@ io.on("connection", (socket: Socket) => {
 
   socket.on("message", data => {
     console.log("Message received from", socket.id, data);
-    if (data === "new-game" && !newGameResponses.includes(socket.id))
+    if (data === "new-game" && !newGameResponses.includes(socket.id)) {
       newGameResponses.push(socket.id);
+      messagePlayer(socket.id, "freeze");
+    }
     if (newGameResponses.length === 2) resetGame();
 
     if (data === "surrender") surrender(socket.id);
@@ -180,6 +182,7 @@ io.on("connection", (socket: Socket) => {
     } else {
       const myRole: Player = gameState.players.O === socket.id ? "O" : "X";
       gameState.players[myRole] = "";
+      resetAll();
     }
   });
 });
