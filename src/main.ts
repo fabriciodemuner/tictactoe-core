@@ -6,7 +6,7 @@ const io = new Server(PORT, {
 });
 
 type Player = "O" | "X";
-type Spectator = "S";
+type Role = Player | "S";
 type Result = Player | "D";
 type GameState = {
   score: {
@@ -128,7 +128,7 @@ const moveSpectatorsQueue = (disconnected: string) => {
 
 io.on("connection", (socket: Socket) => {
   console.log("New connection id:", socket.id);
-  const me: Player | Spectator = gameState.players.O
+  const role: Role = gameState.players.O
     ? gameState.players.X
       ? "S"
       : "X"
@@ -136,14 +136,14 @@ io.on("connection", (socket: Socket) => {
   socket.emit("setup", {
     tiles: gameState.tiles,
     currentPlayer: gameState.currentPlayer,
-    role: me,
+    role,
   });
-  if (me !== "S") {
-    gameState.players[me] = socket.id;
-    console.log("Player assigned:", me, socket.id);
+  if (role !== "S") {
+    gameState.players[role] = socket.id;
+    console.log("Player assigned:", role, socket.id);
   } else {
     gameState.spectators.push(socket.id);
-    console.log("New spectator:", me, socket.id);
+    console.log("New spectator:", role, socket.id);
   }
 
   socket.on("message", data => {
