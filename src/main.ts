@@ -64,7 +64,6 @@ const initialGameState: GameState = {
 
 const gameState: GameState = JSON.parse(JSON.stringify(initialGameState));
 const newGameResponses: string[] = [];
-let resetRequestedBy: string = "";
 
 const resetGame = () => {
   gameState.tiles = JSON.parse(JSON.stringify(initialGameState.tiles));
@@ -78,7 +77,6 @@ const resetGame = () => {
   console.log("New game started");
   io.sockets.emit("game-state", gameState);
   while (newGameResponses.length) newGameResponses.pop();
-  resetRequestedBy = "";
 };
 
 const messagePlayer = (id: string, event: string) => {
@@ -102,7 +100,6 @@ const resetAll = () => {
 };
 
 const startResetRequest = (id: string) => {
-  resetRequestedBy = id;
   const opponent =
     gameState.players.X === id ? gameState.players.O : gameState.players.X;
   messagePlayer(id, "freeze");
@@ -110,7 +107,6 @@ const startResetRequest = (id: string) => {
 };
 
 const cancelResetRequest = () => {
-  resetRequestedBy = "";
   messageAll("reset-cancel");
 };
 
@@ -157,10 +153,8 @@ io.on("connection", (socket: Socket) => {
     if (data === "surrender") surrender(socket.id);
     if (data === "surrender-ok") resetGame();
 
-    if (data === "reset-start") {
-      if (!resetRequestedBy) startResetRequest(socket.id);
-      else if (resetRequestedBy !== socket.id) resetAll();
-    }
+    if (data === "reset-alert") messagePlayer(socket.id, "reset-alert");
+    if (data === "reset-start") startResetRequest(socket.id);
     if (data === "reset-confirm") resetAll();
     if (data === "reset-cancel") cancelResetRequest();
   });
