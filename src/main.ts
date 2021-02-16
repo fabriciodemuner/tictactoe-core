@@ -73,6 +73,8 @@ io.on("connection", (socket: Socket) => {
   });
 
   socket.on("disconnecting", () => {
+    const roomIdx = rooms.findIndex(r => r.id === player.room.id);
+    rooms.splice(roomIdx, 1);
     const opponent = player.room.players.find(p => p.id !== socket.id);
     if (opponent) {
       opponent.socket.leave(player.room.id);
