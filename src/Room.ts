@@ -14,6 +14,7 @@ export type GameState = {
   gameOver: boolean;
   freeze: boolean;
   surrender: boolean;
+  waitingForOpponent: boolean;
   result: Result;
   tiles: {
     1: Role;
@@ -40,6 +41,7 @@ const initialGameState: GameState = {
   freeze: false,
   surrender: false,
   result: undefined,
+  waitingForOpponent: true,
   tiles: {
     1: undefined,
     2: undefined,

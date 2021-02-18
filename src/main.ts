@@ -22,8 +22,11 @@ const setupGame = (player: Player) => {
     tiles: player.room.gameState.tiles,
     currentPlayer: player.room.gameState.currentPlayer,
     role: player.role,
+    waitingForOpponent: player.room.gameState.waitingForOpponent,
   });
 };
+
+const startGame = (roomId: Room["id"]) => io.to(roomId).emit("start-game");
 
 io.on("connection", (socket: Socket) => {
   console.log(
@@ -35,7 +38,14 @@ io.on("connection", (socket: Socket) => {
   const player = new Player(socket.id, io, socket);
   player.room = findRoom(player);
   socket.join(player.room.id);
-  setupGame(player);
+  if (player.room.players.length < 2) {
+    player.room.gameState.waitingForOpponent = true;
+    setupGame(player);
+  } else {
+    player.room.gameState.waitingForOpponent = false;
+    setupGame(player);
+    startGame(player.room.id);
+  }
 
   socket.on("message", data => {
     console.log("Message received from", socket.id.slice(0, 6), data);
