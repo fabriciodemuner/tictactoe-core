@@ -23,6 +23,7 @@ const setupGame = (player: Player) => {
     currentPlayer: player.room.gameState.currentPlayer,
     role: player.role,
     waitingForOpponent: player.room.gameState.waitingForOpponent,
+    joinOption: player.joinOption,
   });
 };
 
@@ -36,16 +37,20 @@ io.on("connection", (socket: Socket) => {
     io.sockets.sockets.size
   );
   const player = new Player(socket.id, io, socket);
-  player.room = findRoom(player);
-  socket.join(player.room.id);
-  if (player.room.players.length < 2) {
-    player.room.gameState.waitingForOpponent = true;
-    setupGame(player);
-  } else {
-    player.room.gameState.waitingForOpponent = false;
-    setupGame(player);
-    startGame(player.room.id);
-  }
+
+  socket.on("random-room", () => {
+    player.joinOption = "random-room";
+    player.room = findRoom(player);
+    socket.join(player.room.id);
+    if (player.room.players.length < 2) {
+      player.room.gameState.waitingForOpponent = true;
+      setupGame(player);
+    } else {
+      player.room.gameState.waitingForOpponent = false;
+      setupGame(player);
+      startGame(player.room.id);
+    }
+  });
 
   socket.on("message", data => {
     console.log("Message received from", socket.id.slice(0, 6), data);
@@ -85,7 +90,7 @@ io.on("connection", (socket: Socket) => {
   socket.on("disconnecting", () => {
     const roomIdx = rooms.findIndex(r => r.id === player.room.id);
     rooms.splice(roomIdx, 1);
-    const opponent = player.room.players.find(p => p.id !== socket.id);
+    const opponent = player.room?.players.find(p => p.id !== socket.id);
     if (opponent) {
       opponent.socket.leave(player.room.id);
       const oppNewRoom = findRoom(opponent);
