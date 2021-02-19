@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
-import { Player, Role } from "./Player";
 import { Server } from "socket.io";
+import { Player, Role } from "./Player";
 
 type Result = Role | "D";
 export type GameState = {
@@ -29,6 +29,9 @@ export type GameState = {
   };
 };
 
+export const randomRooms: RandomRoom[] = [];
+export const namedRooms: NamedRoom[] = [];
+
 const initialGameState: GameState = {
   score: {
     O: 0,
@@ -55,14 +58,15 @@ const initialGameState: GameState = {
   },
 };
 
-export class Room {
-  id: string;
-  name: string;
-  type: "random" | "created";
+abstract class Room {
+  readonly id: string;
+  readonly name: string;
+  readonly type: "random" | "created";
+  readonly io: Server;
   players: Player[];
+  spectators: Player[];
   gameState: GameState;
   newGameResponses: string[] = [];
-  io: Server;
 
   static winningPositions: [number, number, number][] = [
     [1, 2, 3],
@@ -77,12 +81,17 @@ export class Room {
 
   constructor(server: Server, name?: string) {
     this.id = nanoid();
-    this.name = name || this.id;
     this.type = name ? "created" : "random";
+    this.io = server;
     this.players = [];
     this.gameState = JSON.parse(JSON.stringify(initialGameState));
-    this.io = server;
+    if (name) {
+      this.name = name;
+      this.spectators = [];
+    }
   }
+
+  startGame = () => this.io.to(this.id).emit("start-game");
 
   messagePlayer(playerId: string, event: string) {
     this.io.to(playerId).emit(event);
@@ -157,7 +166,8 @@ export class Room {
     this.gameState.currentPlayer = nextPlayer;
     this.gameState.surrender = initialGameState.surrender;
     this.gameState.freeze = initialGameState.freeze;
-    console.log("New game started", this.id.slice(0, 6));
+    this.gameState.waitingForOpponent = this.players.length !== 2;
+    console.log("New game started", this.name || this.id.slice(0, 6));
     this.io.to(this.id).emit("game-state", this.gameState);
     while (this.newGameResponses.length) this.newGameResponses.pop();
   }
@@ -165,5 +175,70 @@ export class Room {
   resetAll() {
     this.gameState.score = JSON.parse(JSON.stringify(initialGameState.score));
     this.resetGame();
+  }
+}
+
+export class RandomRoom extends Room {
+  constructor(server: Server) {
+    super(server);
+  }
+
+  handleDisconnection(player: Player) {
+    const roomIdx = randomRooms.findIndex(r => r.id === player.room.id);
+    randomRooms.splice(roomIdx, 1);
+    const opponent = player.room.players.find(p => p.id !== player.id);
+    if (!opponent) return;
+
+    opponent.socket.leave(player.room.id);
+    const oppNewRoom = opponent.findRandomRoom();
+    opponent.setupGame();
+    if (oppNewRoom.players.length === 2) {
+      oppNewRoom.gameState.waitingForOpponent = false;
+      oppNewRoom.startGame();
+    }
+  }
+}
+
+export class NamedRoom extends Room {
+  constructor(server: Server, name: string) {
+    super(server, name);
+  }
+
+  addSpectator(player: Player) {
+    this.spectators.push(player);
+    player.role = "S";
+  }
+
+  addPlayer(player: Player) {
+    this.players.push(player);
+    const opponent = this.players.find(p => p.id !== player.id);
+    if (opponent) {
+      player.role = opponent.role === "O" ? "X" : "O";
+    } else {
+      player.role = "X";
+    }
+    this.gameState.waitingForOpponent = this.players.length !== 2;
+    console.log("Player assigned:", player.role, player.id.slice(0, 6));
+    console.log("waiting", this.gameState.waitingForOpponent);
+  }
+
+  moveSpectatorsQueue() {
+    const nextPlayer = this.spectators.shift();
+    this.addPlayer(nextPlayer);
+    console.log("Player assigned:", nextPlayer.role, nextPlayer.id.slice(0, 6));
+    nextPlayer.setupGame();
+    this.resetAll();
+  }
+
+  handleDisconnection(player: Player) {
+    if (this.spectators.includes(player)) {
+      const idx = this.spectators.indexOf(player);
+      this.spectators.splice(idx, 1);
+      return;
+    }
+
+    const idx = this.players.indexOf(player);
+    this.players.splice(idx, 1);
+    this.spectators.length ? this.moveSpectatorsQueue() : this.resetAll();
   }
 }
