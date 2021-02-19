@@ -57,6 +57,7 @@ export class Player {
   }
 
   createNamedRoom(name: string): NamedRoom {
+    this.joinOption = "create-room";
     const room = new NamedRoom(this.io, name);
     console.log(this.id.slice(0, 6), "created named room", room.name);
     room.gameState.waitingForOpponent = true;
@@ -65,16 +66,23 @@ export class Player {
     this.socket.join(room.id);
     this.role = "O";
     namedRooms.push(room);
+    this.setupGame();
     return room;
   }
 
   joinNamedRoom(name: string): NamedRoom {
     const room = namedRooms.find(r => r.name === name);
     console.log(this.id.slice(0, 6), "joined named room", room.name);
+    this.joinOption = "join-room";
     this.room = room;
     this.socket.join(room.id);
     room.players.length === 2 ? room.addSpectator(this) : room.addPlayer(this);
     if (this.role !== "S") room.resetAll();
+    this.setupGame();
     return room;
+  }
+
+  sendMessage(event: string) {
+    this.socket.emit(event);
   }
 }

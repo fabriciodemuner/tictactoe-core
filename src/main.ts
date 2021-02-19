@@ -24,17 +24,12 @@ io.on("connection", (socket: Socket) => {
 
   socket.on("create-room", (data: string) => {
     console.log(socket.id.slice(0, 6), "wants to create room", data);
-    player.joinOption = "create-room";
     player.createNamedRoom(data);
-    player.setupGame();
   });
 
   socket.on("join-room", (data: string) => {
     console.log(socket.id.slice(0, 6), "wants to join room", data);
-    player.joinOption = "join-room";
     player.joinNamedRoom(data);
-    player.setupGame();
-    if (!player.room.gameState.waitingForOpponent) player.room.startGame();
   });
 
   socket.on("message", data => {
@@ -44,15 +39,14 @@ io.on("connection", (socket: Socket) => {
       !player.room.newGameResponses.includes(socket.id)
     ) {
       player.room.newGameResponses.push(socket.id);
-      player.room.messagePlayer(socket.id, "freeze");
+      player.sendMessage("freeze");
       if (player.room.newGameResponses.length === 2) player.room.resetGame();
     }
 
     if (data === "surrender") player.room.surrender(socket.id);
     if (data === "surrender-ok") player.room.resetGame();
 
-    if (data === "reset-alert")
-      player.room.messagePlayer(socket.id, "reset-alert");
+    if (data === "reset-alert") player.sendMessage("reset-alert");
     if (data === "reset-start") player.room.startResetRequest(socket.id);
     if (data === "reset-confirm") player.room.resetAll();
     if (data === "reset-cancel") player.room.cancelResetRequest();
