@@ -57,6 +57,8 @@ const initialGameState: GameState = {
 
 export class Room {
   id: string;
+  name: string;
+  type: "random" | "created";
   players: Player[];
   gameState: GameState;
   newGameResponses: string[] = [];
@@ -73,8 +75,10 @@ export class Room {
     [3, 5, 7],
   ];
 
-  constructor(server: Server) {
+  constructor(server: Server, name?: string) {
     this.id = nanoid();
+    this.name = name || this.id;
+    this.type = name ? "created" : "random";
     this.players = [];
     this.gameState = JSON.parse(JSON.stringify(initialGameState));
     this.io = server;

@@ -18,27 +18,25 @@ export class Player {
     this.socket = socket;
   }
 
-  assignRole(role: Role) {
-    this.role = role;
-    console.log(
-      `${this.id.slice(0, 6)} ${role} room ${this.room.id.slice(0, 6)}`
-    );
-  }
-
-  createRoom(): Room {
-    const room = new Room(this.io);
+  createRoom(name?: string): Room {
+    const room = new Room(this.io, name);
     console.log(this.id.slice(0, 6), "room created", room.id.slice(0, 6));
-    this.room = room;
+    if (room.name !== room.id) console.log("with name:", room.name);
+    room.gameState.waitingForOpponent = true;
     room.players.push(this);
-    this.assignRole("O");
+    this.room = room;
+    this.socket.join(room.id);
+    this.role = "O";
     return room;
   }
 
   joinRoom(room: Room): Room {
     console.log(this.id.slice(0, 6), "joined room", room.id.slice(0, 6));
-    this.room = room;
+    room.gameState.waitingForOpponent = false;
     room.players.push(this);
-    this.assignRole("X");
+    this.room = room;
+    this.socket.join(room.id);
+    this.role = "X";
     room.resetAll();
     return room;
   }

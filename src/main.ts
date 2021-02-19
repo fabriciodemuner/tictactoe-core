@@ -8,8 +8,10 @@ const io = new Server(PORT, {
 });
 const rooms: Room[] = [];
 
-const findRoom = (player: Player): Room => {
-  const availableRoom = rooms.find(r => r.players.length !== 2);
+const findRandomRoom = (player: Player): Room => {
+  const availableRoom = rooms.find(
+    r => r.type === "random" && r.players.length !== 2
+  );
   if (availableRoom) return player.joinRoom(availableRoom);
 
   const newRoom = player.createRoom();
@@ -29,6 +31,21 @@ const setupGame = (player: Player) => {
 
 const startGame = (roomId: Room["id"]) => io.to(roomId).emit("start-game");
 
+const handleRandomRoomDisconnection = (player: Player) => {
+  const roomIdx = rooms.findIndex(r => r.id === player.room.id);
+  rooms.splice(roomIdx, 1);
+  const opponent = player.room.players.find(p => p.id !== player.socket.id);
+  if (opponent) {
+    opponent.socket.leave(player.room.id);
+    const oppNewRoom = findRandomRoom(opponent);
+    setupGame(opponent);
+    if (oppNewRoom.players.length === 2) {
+      oppNewRoom.gameState.waitingForOpponent = false;
+      startGame(oppNewRoom.id);
+    }
+  }
+};
+
 io.on("connection", (socket: Socket) => {
   console.log(
     "New connection id:",
@@ -40,16 +57,26 @@ io.on("connection", (socket: Socket) => {
 
   socket.on("random-room", () => {
     player.joinOption = "random-room";
-    player.room = findRoom(player);
-    socket.join(player.room.id);
-    if (player.room.players.length < 2) {
-      player.room.gameState.waitingForOpponent = true;
-      setupGame(player);
-    } else {
-      player.room.gameState.waitingForOpponent = false;
-      setupGame(player);
-      startGame(player.room.id);
-    }
+    findRandomRoom(player);
+    setupGame(player);
+    if (!player.room.gameState.waitingForOpponent) startGame(player.room.id);
+  });
+
+  socket.on("create-room", (data: string) => {
+    console.log(socket.id.slice(0, 6), "wants to create room", data);
+    player.joinOption = "create-room";
+    const room = player.createRoom(data);
+    rooms.push(room);
+    setupGame(player);
+  });
+
+  socket.on("join-room", (data: string) => {
+    console.log(socket.id.slice(0, 6), "wants to join room", data);
+    player.joinOption = "join-room";
+    const room = rooms.find(r => r.type === "created" && r.name === data);
+    player.joinRoom(room);
+    setupGame(player);
+    startGame(player.room.id);
   });
 
   socket.on("message", data => {
@@ -88,15 +115,12 @@ io.on("connection", (socket: Socket) => {
   });
 
   socket.on("disconnecting", () => {
-    const roomIdx = rooms.findIndex(r => r.id === player.room.id);
-    rooms.splice(roomIdx, 1);
-    const opponent = player.room?.players.find(p => p.id !== socket.id);
-    if (opponent) {
-      opponent.socket.leave(player.room.id);
-      const oppNewRoom = findRoom(opponent);
-      opponent.socket.join(oppNewRoom.id);
-      opponent.room = oppNewRoom;
-      setupGame(opponent);
+    if (player.room) {
+      if (player.joinOption === "random-room") {
+        handleRandomRoomDisconnection(player);
+      } else {
+        player.room.resetAll();
+      }
     }
   });
 
