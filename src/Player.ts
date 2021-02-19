@@ -57,6 +57,12 @@ export class Player {
   }
 
   createNamedRoom(name: string): NamedRoom {
+    const existingRoom = namedRooms.find(r => r.name === name);
+    if (existingRoom) {
+      this.socket.emit("room-name-taken");
+      return;
+    }
+
     this.joinOption = "create-room";
     const room = new NamedRoom(this.io, name);
     console.log(this.id.slice(0, 6), "created named room", room.name);
@@ -72,6 +78,11 @@ export class Player {
 
   joinNamedRoom(name: string): NamedRoom {
     const room = namedRooms.find(r => r.name === name);
+    if (!room) {
+      this.socket.emit("room-not-found");
+      return;
+    }
+
     console.log(this.id.slice(0, 6), "joined named room", room.name);
     this.joinOption = "join-room";
     this.room = room;

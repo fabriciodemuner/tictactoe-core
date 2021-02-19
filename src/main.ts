@@ -50,6 +50,9 @@ io.on("connection", (socket: Socket) => {
     if (data === "reset-start") player.room.startResetRequest(socket.id);
     if (data === "reset-confirm") player.room.resetAll();
     if (data === "reset-cancel") player.room.cancelResetRequest();
+
+    if (data === "room-name-taken-ok") player.sendMessage("room-name-taken-ok");
+    if (data === "room-not-found-ok") player.sendMessage("room-not-found-ok");
   });
 
   socket.on("tile-clicked", (data: { id: number; player: Role }) => {
