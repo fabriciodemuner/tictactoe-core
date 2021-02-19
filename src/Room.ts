@@ -239,6 +239,16 @@ export class NamedRoom extends Room {
 
     const idx = this.players.indexOf(player);
     this.players.splice(idx, 1);
+    if (!this.players.length) {
+      this.deleteRoom();
+      return;
+    }
+
     this.spectators.length ? this.moveSpectatorsQueue() : this.resetAll();
+  }
+
+  deleteRoom() {
+    const idx = namedRooms.indexOf(this);
+    namedRooms.splice(idx, 1);
   }
 }
