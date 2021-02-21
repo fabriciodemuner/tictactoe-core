@@ -33,7 +33,7 @@ export class Player {
 
   createRandomRoom(): RandomRoom {
     const room = new RandomRoom(this.io);
-    console.log(this.id.slice(0, 6), "create random room", room.id.slice(0, 6));
+    console.log(this.name, "created random room", room.id.slice(0, 6));
     room.gameState.waitingForOpponent = true;
     room.players.push(this);
     this.room = room;
@@ -44,7 +44,7 @@ export class Player {
   }
 
   joinRandomRoom(room: RandomRoom): RandomRoom {
-    console.log(this.id.slice(0, 6), "joined random room", room.id.slice(0, 6));
+    console.log(this.name, "joined random room", room.id.slice(0, 6));
     room.gameState.waitingForOpponent = false;
     room.players.push(this);
     this.room = room;
@@ -59,16 +59,16 @@ export class Player {
     return room ? this.joinRandomRoom(room) : this.createRandomRoom();
   }
 
-  createNamedRoom(name: string): NamedRoom {
-    const existingRoom = namedRooms.find(r => r.name === name);
+  createNamedRoom(roomName: string): NamedRoom {
+    const existingRoom = namedRooms.find(r => r.name === roomName);
     if (existingRoom) {
       this.socket.emit("room-name-taken");
       return;
     }
 
     this.joinOption = "create-room";
-    const room = new NamedRoom(this.io, name);
-    console.log(this.id.slice(0, 6), "created named room", room.name);
+    const room = new NamedRoom(this.io, roomName);
+    console.log(this.name, "created named room", room.name);
     room.gameState.waitingForOpponent = true;
     room.players.push(this);
     this.room = room;
@@ -79,14 +79,14 @@ export class Player {
     return room;
   }
 
-  joinNamedRoom(name: string): NamedRoom {
-    const room = namedRooms.find(r => r.name === name);
+  joinNamedRoom(roomName: string): NamedRoom {
+    const room = namedRooms.find(r => r.name === roomName);
     if (!room) {
       this.socket.emit("room-not-found");
       return;
     }
 
-    console.log(this.id.slice(0, 6), "joined named room", room.name);
+    console.log(this.name, "joined named room", room.name);
     this.joinOption = "join-room";
     this.room = room;
     this.socket.join(room.id);

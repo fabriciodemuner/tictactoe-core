@@ -110,26 +110,31 @@ abstract class Room {
       this.gameState.currentPlayer === "O" ? "X" : "O";
   }
 
-  checkResult(id: number, player: Role) {
-    this.gameState.tiles[id] = player;
+  checkResult(id: number, role: Role) {
+    this.gameState.tiles[id] = role;
     const playedArray = Object.keys(this.gameState.tiles)
-      .filter(idx => this.gameState.tiles[idx] === player)
+      .filter(idx => this.gameState.tiles[idx] === role)
       .map(Number);
     let win = false;
     Room.winningPositions.forEach(pos => {
       if (pos.every(elem => playedArray.includes(elem))) {
         win = true;
-        console.log("WIN!!! Player", player, this.id.slice(0, 6));
+        console.log(
+          "WIN!!! Player",
+          role,
+          "room",
+          this.name || this.id.slice(0, 6)
+        );
       }
     });
     if (win) {
       this.gameState.gameOver = true;
-      this.gameState.result = player;
-      this.addPoint(player);
+      this.gameState.result = role;
+      this.addPoint(role);
       return;
     }
     if (Object.values(this.gameState.tiles).filter(p => p).length === 9) {
-      console.log("DRAW!!", this.id.slice(0, 6));
+      console.log("DRAW!!", this.name || this.id.slice(0, 6));
       this.gameState.gameOver = true;
       this.gameState.result = "D";
       this.addPoint("D");
@@ -218,14 +223,13 @@ export class NamedRoom extends Room {
       player.role = "X";
     }
     this.gameState.waitingForOpponent = this.players.length !== 2;
-    console.log("Player assigned:", player.role, player.id.slice(0, 6));
-    console.log("waiting", this.gameState.waitingForOpponent);
+    console.log("Player assigned:", player.role, player.name);
   }
 
   moveSpectatorsQueue() {
     const nextPlayer = this.spectators.shift();
     this.addPlayer(nextPlayer);
-    console.log("Player assigned:", nextPlayer.role, nextPlayer.id.slice(0, 6));
+    console.log("Player assigned:", nextPlayer.role, nextPlayer.name);
     nextPlayer.setupGame();
     this.resetAll();
   }
