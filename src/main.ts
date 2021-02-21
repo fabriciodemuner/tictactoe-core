@@ -5,6 +5,8 @@ const PORT = Number(process.env.PORT) || 5000;
 const io = new Server(PORT, {
   cors: { origin: true },
 });
+export type GameName = "TicTacToe";
+type SetupData = { userName: string; game: GameName };
 
 io.on("connection", (socket: Socket) => {
   console.log(
@@ -14,6 +16,14 @@ io.on("connection", (socket: Socket) => {
     io.sockets.sockets.size
   );
   const player = new Player(socket.id, io, socket);
+
+  socket.on("setup", (data: SetupData) => {
+    const { userName, game } = data;
+    player.name = userName;
+    player.game = game;
+    console.log(player.name, "selected", player.game);
+    socket.emit("app-setup", game);
+  });
 
   socket.on("random-room", () => {
     player.joinOption = "random-room";

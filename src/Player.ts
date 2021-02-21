@@ -1,4 +1,5 @@
 import { Server, Socket } from "socket.io";
+import { GameName } from "./main";
 import { NamedRoom, namedRooms, RandomRoom, randomRooms } from "./Room";
 
 export type Role = "O" | "X" | "S";
@@ -6,6 +7,8 @@ type JoinOption = "random-room" | "create-room" | "join-room";
 
 export class Player {
   id: string;
+  name: string;
+  game: GameName;
   room: NamedRoom | RandomRoom;
   role: Role;
   io: Server;
