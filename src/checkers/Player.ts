@@ -94,7 +94,6 @@ export class CheckersUser {
   }
 
   moveIsAllowed(from: RowCol, to: RowCol) {
-    console.log(from, to);
     const fromId = this.idFromPosition(from);
     const toId = this.idFromPosition(to);
     if (![7, 9].includes(Math.abs(fromId - toId))) return false;
@@ -103,10 +102,18 @@ export class CheckersUser {
   }
 
   movePiece(from: RowCol, to: RowCol) {
-    console.log(from, to);
     this.room.gameState.tiles[this.idFromPosition(from)] = undefined;
     this.room.gameState.tiles[this.idFromPosition(to)] = this.role;
-    console.log(this.room.gameState.tiles);
+    console.log(
+      "Piece moved from ",
+      this.idFromPosition(from),
+      "to",
+      this.idFromPosition(to),
+      "Player:",
+      this.name,
+      "Room:",
+      this.room.name || this.room.id.slice(0, 6)
+    );
   }
 
   private idFromPosition(position: RowCol) {

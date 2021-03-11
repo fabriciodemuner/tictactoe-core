@@ -58,17 +58,6 @@ export const manageCheckers = (io: Server, socket: Socket, name: string) => {
       moveTo: RowCol;
       currentPlayer: CheckersPlayer;
     }) => {
-      console.log(
-        "Piece moved from ",
-        data.moveFrom,
-        "to",
-        data.moveTo,
-        "Player:",
-        player.name,
-        data.currentPlayer,
-        "Room:",
-        player.room.name || player.room.id.slice(0, 6)
-      );
       if (player.moveIsAllowed(data.moveFrom, data.moveTo)) {
         player.movePiece(data.moveFrom, data.moveTo);
         player.room.checkResult(data.currentPlayer);
