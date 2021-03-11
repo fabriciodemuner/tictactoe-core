@@ -1,22 +1,19 @@
 import { Server, Socket } from "socket.io";
-import { GameName } from "./main";
+import { GameName, JoinOption, Role, CheckersPlayer, RowCol } from "../types";
 import { NamedRoom, namedRooms, RandomRoom, randomRooms } from "./Room";
 
-export type Role = "O" | "X" | "S";
-type JoinOption = "random-room" | "create-room" | "join-room";
-
-export class Player {
+export class CheckersUser {
   id: string;
   name: string;
   game: GameName;
   room: NamedRoom | RandomRoom;
-  role: Role;
+  role: Role<CheckersPlayer>;
   io: Server;
   socket: Socket;
   joinOption: JoinOption;
 
-  constructor(id: string, server: Server, socket: Socket) {
-    this.id = id;
+  constructor(server: Server, socket: Socket) {
+    this.id = socket.id;
     this.io = server;
     this.socket = socket;
   }
@@ -38,7 +35,7 @@ export class Player {
     room.players.push(this);
     this.room = room;
     this.socket.join(room.id);
-    this.role = "O";
+    this.role = "W";
     randomRooms.push(room);
     return room;
   }
@@ -49,7 +46,7 @@ export class Player {
     room.players.push(this);
     this.room = room;
     this.socket.join(room.id);
-    this.role = "X";
+    this.role = "B";
     room.resetAll();
     return room;
   }
@@ -73,7 +70,7 @@ export class Player {
     room.players.push(this);
     this.room = room;
     this.socket.join(room.id);
-    this.role = "O";
+    this.role = "W";
     namedRooms.push(room);
     this.setupGame();
     return room;
@@ -94,6 +91,26 @@ export class Player {
     if (this.role !== "S") room.resetAll();
     this.setupGame();
     return room;
+  }
+
+  moveIsAllowed(from: RowCol, to: RowCol) {
+    console.log(from, to);
+    const fromId = this.idFromPosition(from);
+    const toId = this.idFromPosition(to);
+    if (![7, 9].includes(Math.abs(fromId - toId))) return false;
+
+    return true;
+  }
+
+  movePiece(from: RowCol, to: RowCol) {
+    console.log(from, to);
+    this.room.gameState.tiles[this.idFromPosition(from)] = undefined;
+    this.room.gameState.tiles[this.idFromPosition(to)] = this.role;
+    console.log(this.room.gameState.tiles);
+  }
+
+  private idFromPosition(position: RowCol) {
+    return position.row * 8 + position.col + 1;
   }
 
   sendMessage(event: string) {

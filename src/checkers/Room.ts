@@ -1,31 +1,85 @@
 import { nanoid } from "nanoid";
 import { Server } from "socket.io";
-import { Player, Role } from "./Player";
+import { Result, CheckersPlayer } from "../types";
+import { CheckersUser } from "./Player";
 
-type Result = Role | "D";
-export type GameState = {
+type GameState = {
   score: {
-    O: number;
-    X: number;
+    W: number;
+    B: number;
     D: number;
   };
-  currentPlayer: Role;
-  firstPlayer: Role;
+  currentPlayer: CheckersPlayer;
+  firstPlayer: CheckersPlayer;
   gameOver: boolean;
   freeze: boolean;
-  surrender: boolean;
   waitingForOpponent: boolean;
-  result: Result;
+  result: Result<CheckersPlayer>;
   tiles: {
-    1: Role;
-    2: Role;
-    3: Role;
-    4: Role;
-    5: Role;
-    6: Role;
-    7: Role;
-    8: Role;
-    9: Role;
+    1: CheckersPlayer;
+    2: CheckersPlayer;
+    3: CheckersPlayer;
+    4: CheckersPlayer;
+    5: CheckersPlayer;
+    6: CheckersPlayer;
+    7: CheckersPlayer;
+    8: CheckersPlayer;
+    9: CheckersPlayer;
+    10: CheckersPlayer;
+    11: CheckersPlayer;
+    12: CheckersPlayer;
+    13: CheckersPlayer;
+    14: CheckersPlayer;
+    15: CheckersPlayer;
+    16: CheckersPlayer;
+    17: CheckersPlayer;
+    18: CheckersPlayer;
+    19: CheckersPlayer;
+    20: CheckersPlayer;
+    21: CheckersPlayer;
+    22: CheckersPlayer;
+    23: CheckersPlayer;
+    24: CheckersPlayer;
+    25: CheckersPlayer;
+    26: CheckersPlayer;
+    27: CheckersPlayer;
+    28: CheckersPlayer;
+    29: CheckersPlayer;
+    30: CheckersPlayer;
+    31: CheckersPlayer;
+    32: CheckersPlayer;
+    33: CheckersPlayer;
+    34: CheckersPlayer;
+    35: CheckersPlayer;
+    36: CheckersPlayer;
+    37: CheckersPlayer;
+    38: CheckersPlayer;
+    39: CheckersPlayer;
+    40: CheckersPlayer;
+    41: CheckersPlayer;
+    42: CheckersPlayer;
+    43: CheckersPlayer;
+    44: CheckersPlayer;
+    45: CheckersPlayer;
+    46: CheckersPlayer;
+    47: CheckersPlayer;
+    48: CheckersPlayer;
+    49: CheckersPlayer;
+    50: CheckersPlayer;
+    51: CheckersPlayer;
+    52: CheckersPlayer;
+    53: CheckersPlayer;
+    54: CheckersPlayer;
+    55: CheckersPlayer;
+    56: CheckersPlayer;
+    57: CheckersPlayer;
+    58: CheckersPlayer;
+    59: CheckersPlayer;
+    60: CheckersPlayer;
+    61: CheckersPlayer;
+    62: CheckersPlayer;
+    63: CheckersPlayer;
+    64: CheckersPlayer;
   };
 };
 
@@ -34,27 +88,81 @@ export const namedRooms: NamedRoom[] = [];
 
 const initialGameState: GameState = {
   score: {
-    O: 0,
-    X: 0,
+    W: 0,
+    B: 0,
     D: 0,
   },
-  currentPlayer: "O",
-  firstPlayer: "O",
+  currentPlayer: "W",
+  firstPlayer: "W",
   gameOver: false,
   freeze: false,
-  surrender: false,
   result: undefined,
   waitingForOpponent: true,
   tiles: {
-    1: undefined,
+    1: "W",
     2: undefined,
-    3: undefined,
+    3: "W",
     4: undefined,
-    5: undefined,
+    5: "W",
     6: undefined,
-    7: undefined,
+    7: "W",
     8: undefined,
     9: undefined,
+    10: "W",
+    11: undefined,
+    12: "W",
+    13: undefined,
+    14: "W",
+    15: undefined,
+    16: "W",
+    17: "W",
+    18: undefined,
+    19: "W",
+    20: undefined,
+    21: "W",
+    22: undefined,
+    23: "W",
+    24: undefined,
+    25: undefined,
+    26: undefined,
+    27: undefined,
+    28: undefined,
+    29: undefined,
+    30: undefined,
+    31: undefined,
+    32: undefined,
+    33: undefined,
+    34: undefined,
+    35: undefined,
+    36: undefined,
+    37: undefined,
+    38: undefined,
+    39: undefined,
+    40: undefined,
+    41: undefined,
+    42: "B",
+    43: undefined,
+    44: "B",
+    45: undefined,
+    46: "B",
+    47: undefined,
+    48: "B",
+    49: "B",
+    50: undefined,
+    51: "B",
+    52: undefined,
+    53: "B",
+    54: undefined,
+    55: "B",
+    56: undefined,
+    57: undefined,
+    58: "B",
+    59: undefined,
+    60: "B",
+    61: undefined,
+    62: "B",
+    63: undefined,
+    64: "B",
   },
 };
 
@@ -63,21 +171,10 @@ abstract class Room {
   readonly name: string;
   readonly type: "random" | "created";
   readonly io: Server;
-  players: Player[];
-  spectators: Player[];
+  players: CheckersUser[];
+  spectators: CheckersUser[];
   gameState: GameState;
   newGameResponses: string[] = [];
-
-  static winningPositions: [number, number, number][] = [
-    [1, 2, 3],
-    [4, 5, 6],
-    [7, 8, 9],
-    [1, 4, 7],
-    [2, 5, 8],
-    [3, 6, 9],
-    [1, 5, 9],
-    [3, 5, 7],
-  ];
 
   constructor(server: Server, name?: string) {
     this.id = nanoid();
@@ -101,55 +198,41 @@ abstract class Room {
     this.io.to(this.id).emit(event);
   }
 
-  addPoint(p: Result) {
+  addPoint(p: Result<CheckersPlayer>) {
     this.gameState.score[p]++;
   }
 
   togglePlayer() {
     this.gameState.currentPlayer =
-      this.gameState.currentPlayer === "O" ? "X" : "O";
+      this.gameState.currentPlayer === "W" ? "B" : "W";
   }
 
-  checkResult(id: number, role: Role) {
-    this.gameState.tiles[id] = role;
-    const playedArray = Object.keys(this.gameState.tiles)
-      .filter(idx => this.gameState.tiles[idx] === role)
-      .map(Number);
-    let win = false;
-    Room.winningPositions.forEach(pos => {
-      if (pos.every(elem => playedArray.includes(elem))) {
-        win = true;
-        console.log(
-          "WIN!!! Player",
-          role,
-          "room",
-          this.name || this.id.slice(0, 6)
-        );
-      }
-    });
+  checkResult(role: CheckersPlayer) {
+    const oppRole = role === "W" ? "B" : "W";
+    const oppPieces = Object.values(this.gameState.tiles).filter(
+      r => r === oppRole
+    );
+    const win = !oppPieces.length;
     if (win) {
       this.gameState.gameOver = true;
       this.gameState.result = role;
       this.addPoint(role);
       return;
     }
-    if (Object.values(this.gameState.tiles).filter(p => p).length === 9) {
-      console.log("DRAW!!", this.name || this.id.slice(0, 6));
-      this.gameState.gameOver = true;
-      this.gameState.result = "D";
-      this.addPoint("D");
-      return;
-    }
+
     this.togglePlayer();
   }
 
-  surrender(id: string) {
+  startDrawRequest(id: string) {
     const opponent = this.players.find(p => p.id !== id);
-    const result = opponent.role;
-    this.addPoint(result);
-    this.gameState.freeze = true;
     this.messagePlayer(id, "freeze");
-    this.messagePlayer(opponent.id, "opp-surrender");
+    this.messagePlayer(opponent.id, "draw-start");
+  }
+
+  finishDrawRequest() {
+    this.addPoint("D");
+    this.messageAll("draw-cancel");
+    this.resetGame();
   }
 
   startResetRequest(id: string) {
@@ -166,10 +249,10 @@ abstract class Room {
     this.gameState.tiles = JSON.parse(JSON.stringify(initialGameState.tiles));
     this.gameState.result = initialGameState.result;
     this.gameState.gameOver = initialGameState.gameOver;
-    const nextPlayer: Role = this.gameState.firstPlayer === "O" ? "X" : "O";
+    const nextPlayer: CheckersPlayer =
+      this.gameState.firstPlayer === "W" ? "B" : "W";
     this.gameState.firstPlayer = nextPlayer;
     this.gameState.currentPlayer = nextPlayer;
-    this.gameState.surrender = initialGameState.surrender;
     this.gameState.freeze = initialGameState.freeze;
     this.gameState.waitingForOpponent = this.players.length !== 2;
     console.log("New game started", this.name || this.id.slice(0, 6));
@@ -188,7 +271,7 @@ export class RandomRoom extends Room {
     super(server);
   }
 
-  handleDisconnection(player: Player) {
+  handleDisconnection(player: CheckersUser) {
     const roomIdx = randomRooms.findIndex(r => r.id === player.room.id);
     randomRooms.splice(roomIdx, 1);
     const opponent = player.room.players.find(p => p.id !== player.id);
@@ -209,18 +292,18 @@ export class NamedRoom extends Room {
     super(server, name);
   }
 
-  addSpectator(player: Player) {
+  addSpectator(player: CheckersUser) {
     this.spectators.push(player);
     player.role = "S";
   }
 
-  addPlayer(player: Player) {
+  addPlayer(player: CheckersUser) {
     this.players.push(player);
     const opponent = this.players.find(p => p.id !== player.id);
     if (opponent) {
-      player.role = opponent.role === "O" ? "X" : "O";
+      player.role = opponent.role === "W" ? "B" : "W";
     } else {
-      player.role = "X";
+      player.role = "B";
     }
     this.gameState.waitingForOpponent = this.players.length !== 2;
     console.log("Player assigned:", player.role, player.name);
@@ -234,7 +317,7 @@ export class NamedRoom extends Room {
     this.resetAll();
   }
 
-  handleDisconnection(player: Player) {
+  handleDisconnection(player: CheckersUser) {
     if (this.spectators.includes(player)) {
       const idx = this.spectators.indexOf(player);
       this.spectators.splice(idx, 1);
