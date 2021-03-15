@@ -207,16 +207,20 @@ abstract class Room {
       this.gameState.currentPlayer === "W" ? "B" : "W";
   }
 
-  checkResult(role: CheckersPlayer) {
-    const oppRole = role === "W" ? "B" : "W";
-    const oppPieces = Object.values(this.gameState.tiles).filter(
-      r => r === oppRole
-    );
-    const win = !oppPieces.length;
-    if (win) {
+  checkResult() {
+    const black = Object.values(this.gameState.tiles).filter(r => r === "B");
+    const white = Object.values(this.gameState.tiles).filter(r => r === "W");
+
+    const winner: CheckersPlayer = !black.length
+      ? "W"
+      : !white.length
+      ? "B"
+      : undefined;
+
+    if (winner) {
       this.gameState.gameOver = true;
-      this.gameState.result = role;
-      this.addPoint(role);
+      this.gameState.result = winner;
+      this.addPoint(winner);
       return;
     }
 

@@ -93,19 +93,39 @@ export class CheckersUser {
     return room;
   }
 
-  moveIsAllowed(from: RowCol, to: RowCol) {
-    const fromId = this.idFromPosition(from);
-    const toId = this.idFromPosition(to);
-    if (![7, 9].includes(Math.abs(fromId - toId))) return false;
+  verifyMove(from: RowCol, to: RowCol) {
+    const rows = to.row - from.row;
+    const cols = to.col - from.col;
+    const isDiagonal = Math.abs(cols) === Math.abs(rows);
+    if (!isDiagonal) return;
 
-    return true;
+    const isForward =
+      (this.role === "W" && rows > 0) || (this.role === "B" && rows < 0);
+    const isEmptyTile = !this.room.gameState.tiles[this.idFromPosition(to)];
+    if (Math.abs(rows) === 1 && isForward && isEmptyTile) {
+      this.movePiece(from, to);
+      return;
+    }
+
+    if (Math.abs(rows) === 2) {
+      if (!isEmptyTile) return;
+
+      const col = (to.col + from.col) / 2;
+      const row = (to.row + from.row) / 2;
+      const id = this.idFromPosition({ col, row });
+      const oppRole = this.role === "B" ? "W" : "B";
+      if (this.room.gameState.tiles[id] === oppRole) {
+        this.room.gameState.tiles[id] = undefined;
+        this.movePiece(from, to);
+      }
+    }
   }
 
   movePiece(from: RowCol, to: RowCol) {
     this.room.gameState.tiles[this.idFromPosition(from)] = undefined;
     this.room.gameState.tiles[this.idFromPosition(to)] = this.role;
     console.log(
-      "Piece moved from ",
+      "Piece moved from",
       this.idFromPosition(from),
       "to",
       this.idFromPosition(to),
@@ -114,9 +134,10 @@ export class CheckersUser {
       "Room:",
       this.room.name || this.room.id.slice(0, 6)
     );
+    this.room.checkResult();
   }
 
-  private idFromPosition(position: RowCol) {
+  private idFromPosition(position: RowCol): number {
     return position.row * 8 + position.col + 1;
   }
 

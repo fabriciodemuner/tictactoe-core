@@ -1,5 +1,5 @@
 import { Server, Socket } from "socket.io";
-import { CheckersPlayer, RowCol } from "../types";
+import { RowCol } from "../types";
 import { CheckersUser } from "./Player";
 
 export const manageCheckers = (io: Server, socket: Socket, name: string) => {
@@ -51,20 +51,10 @@ export const manageCheckers = (io: Server, socket: Socket, name: string) => {
     if (data === "room-not-found-ok") player.sendMessage("room-not-found-ok");
   });
 
-  socket.on(
-    "piece-moved",
-    (data: {
-      moveFrom: RowCol;
-      moveTo: RowCol;
-      currentPlayer: CheckersPlayer;
-    }) => {
-      if (player.moveIsAllowed(data.moveFrom, data.moveTo)) {
-        player.movePiece(data.moveFrom, data.moveTo);
-        player.room.checkResult(data.currentPlayer);
-      }
-      io.to(player.room.id).emit("game-state", player.room.gameState);
-    }
-  );
+  socket.on("piece-moved", (data: { moveFrom: RowCol; moveTo: RowCol }) => {
+    player.verifyMove(data.moveFrom, data.moveTo);
+    io.to(player.room.id).emit("game-state", player.room.gameState);
+  });
 
   socket.on("disconnecting", () => {
     if (player.room) player.room.handleDisconnection(player);
