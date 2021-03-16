@@ -137,6 +137,56 @@ export class CheckersUser {
     this.room.checkResult();
   }
 
+  movePieceWithIds(from: number, to: number) {
+    this.room.gameState.tiles[from] = undefined;
+    this.room.gameState.tiles[to] = this.room.gameState.currentPlayer;
+    console.log(
+      "Piece moved from",
+      from,
+      "to",
+      to,
+      "Player:",
+      this.name,
+      "Room:",
+      this.room.name || this.room.id.slice(0, 6)
+    );
+    this.room.checkResult();
+  }
+
+  resumeMatch(id: string) {
+    const existingRoom = namedRooms.find(r => r.name === id);
+    if (existingRoom) {
+      this.joinNamedRoom(id);
+      if (id === "Gostosa Cansada") {
+        this.movePieceWithIds(44, 35);
+        this.movePieceWithIds(19, 26);
+        this.movePieceWithIds(53, 44);
+        this.movePieceWithIds(21, 28);
+        this.movePieceWithIds(48, 39);
+        this.movePieceWithIds(14, 21);
+        this.movePieceWithIds(55, 48);
+        this.movePieceWithIds(23, 32);
+        this.movePieceWithIds(39, 30);
+        this.movePieceWithIds(21, 39);
+        this.movePieceWithIds(48, 30);
+        this.movePieceWithIds(12, 21);
+        this.movePieceWithIds(44, 37);
+        this.movePieceWithIds(21, 39);
+        this.movePieceWithIds(35, 21);
+        this.movePieceWithIds(39, 53);
+        this.movePieceWithIds(60, 46);
+        this.movePieceWithIds(10, 19);
+        this.movePieceWithIds(51, 44);
+        this.movePieceWithIds(16, 23);
+        this.movePieceWithIds(42, 33);
+        this.movePieceWithIds(5, 12);
+        this.movePieceWithIds(37, 28);
+      }
+    } else {
+      this.createNamedRoom(id);
+    }
+  }
+
   private idFromPosition(position: RowCol): number {
     return position.row * 8 + position.col + 1;
   }

@@ -27,6 +27,11 @@ export const manageCheckers = (io: Server, socket: Socket, name: string) => {
     player.joinNamedRoom(roomName);
   });
 
+  socket.on("resume-match", (data: string) => {
+    player.resumeMatch(data);
+    io.to(player.room.id).emit("game-state", player.room.gameState);
+  });
+
   socket.on("message", data => {
     console.log("Message received from", player.name, data);
     if (
