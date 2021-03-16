@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import { Server } from "socket.io";
-import { Result, CheckersPlayer } from "../types";
+import { CheckersPlayer, Result } from "../types";
 import { CheckersUser } from "./Player";
 
 type GameState = {
@@ -15,6 +15,7 @@ type GameState = {
   freeze: boolean;
   waitingForOpponent: boolean;
   result: Result<CheckersPlayer>;
+  crowns: number[];
   tiles: {
     1: CheckersPlayer;
     2: CheckersPlayer;
@@ -98,6 +99,7 @@ const initialGameState: GameState = {
   freeze: false,
   result: undefined,
   waitingForOpponent: true,
+  crowns: [],
   tiles: {
     1: "W",
     2: undefined,
@@ -200,6 +202,14 @@ abstract class Room {
 
   addPoint(p: Result<CheckersPlayer>) {
     this.gameState.score[p]++;
+  }
+
+  removePiece(id: number) {
+    this.gameState.tiles[id] = undefined;
+    if (this.gameState.crowns.includes(id)) {
+      const idx = this.gameState.crowns.findIndex(el => el === id);
+      this.gameState.crowns.splice(idx, 1);
+    }
   }
 
   togglePlayer() {
@@ -341,5 +351,6 @@ export class NamedRoom extends Room {
   deleteRoom() {
     const idx = namedRooms.indexOf(this);
     namedRooms.splice(idx, 1);
+    console.log("Room deleted:", this.name);
   }
 }
