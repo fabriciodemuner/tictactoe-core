@@ -289,12 +289,12 @@ export class RandomRoom extends Room {
   }
 
   handleDisconnection(player: CheckersUser) {
-    const roomIdx = randomRooms.findIndex(r => r.id === player.room.id);
+    const roomIdx = randomRooms.findIndex(r => r.id === this.id);
     randomRooms.splice(roomIdx, 1);
-    const opponent = player.room.players.find(p => p.id !== player.id);
+    const opponent = this.players.find(p => p.id !== player.id);
     if (!opponent) return;
 
-    opponent.socket.leave(player.room.id);
+    opponent.socket.leave(this.id);
     const oppNewRoom = opponent.findRandomRoom();
     opponent.setupGame();
     if (oppNewRoom.players.length === 2) {
@@ -331,27 +331,28 @@ export class NamedRoom extends Room {
 
   moveSpectatorsQueue() {
     const nextPlayer = this.spectators.shift();
+    if (!nextPlayer) return;
+
     this.addPlayer(nextPlayer);
-    console.log("Player assigned:", nextPlayer.role, nextPlayer.name);
     nextPlayer.setupGame();
-    this.resetAll();
   }
 
   handleDisconnection(player: CheckersUser) {
-    if (this.spectators.includes(player)) {
+    if (player.role === "S") {
       const idx = this.spectators.indexOf(player);
       this.spectators.splice(idx, 1);
       return;
     }
 
-    const idx = this.players.indexOf(player);
-    this.players.splice(idx, 1);
-    if (!this.players.length) {
+    if (this.players.length === 1) {
       this.deleteRoom();
       return;
     }
 
-    this.spectators.length ? this.moveSpectatorsQueue() : this.resetAll();
+    const idx = this.players.indexOf(player);
+    this.players.splice(idx, 1);
+    this.moveSpectatorsQueue();
+    this.resetAll();
   }
 
   deleteRoom() {
