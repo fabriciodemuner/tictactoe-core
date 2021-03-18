@@ -3,10 +3,8 @@ import { RowCol } from "../types";
 import { CheckersUser } from "./Player";
 
 export const manageCheckers = (io: Server, socket: Socket, name: string) => {
-  const player = new CheckersUser(io, socket);
-  player.name = name;
-  player.game = "Checkers";
-  console.log(player.name, "selected", player.game);
+  const player = new CheckersUser(io, socket, name);
+  console.log(player.name, "selected Checkers");
   socket.emit("app-setup", "Checkers");
 
   socket.on("random-room", () => {

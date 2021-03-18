@@ -3,10 +3,8 @@ import { TicTacToePlayer } from "../types";
 import { TicTacToeUser } from "./Player";
 
 export const manageTicTacToe = (io: Server, socket: Socket, name: string) => {
-  const player = new TicTacToeUser(io, socket);
-  player.name = name;
-  player.game = "TicTacToe";
-  console.log(player.name, "selected", player.game);
+  const player = new TicTacToeUser(io, socket, name);
+  console.log(player.name, "selected TicTacToe");
   socket.emit("app-setup", "TicTacToe");
 
   socket.on("random-room", () => {
