@@ -1,5 +1,6 @@
 import { Server, Socket } from "socket.io";
 import { CheckersPlayer, GameName, JoinOption, Role, RowCol } from "../types";
+import { CheckersPiece } from "./Piece";
 import { NamedRoom, namedRooms, RandomRoom, randomRooms } from "./Room";
 
 export class CheckersUser {
@@ -11,17 +12,24 @@ export class CheckersUser {
   room: NamedRoom | RandomRoom;
   role: Role<CheckersPlayer>;
   joinOption: JoinOption;
+  pieces: CheckersPiece[];
 
   constructor(server: Server, socket: Socket, name: string) {
     this.id = socket.id;
     this.io = server;
     this.socket = socket;
     this.name = name;
+    this.pieces = [];
   }
+
+  private readonly pieceIds: Record<CheckersPlayer, number[]> = {
+    W: [1, 3, 5, 7, 10, 12, 14, 16, 17, 19, 21, 23],
+    B: [42, 44, 46, 48, 49, 51, 53, 55, 58, 60, 62, 64],
+  };
 
   setupGame() {
     this.socket.emit("setup", {
-      tiles: this.room.gameState.tiles,
+      pieces: this.pieces,
       currentPlayer: this.room.gameState.currentPlayer,
       role: this.role,
       waitingForOpponent: this.room.gameState.waitingForOpponent,
@@ -29,12 +37,29 @@ export class CheckersUser {
     });
   }
 
+  assignRole(role: Role<CheckersPlayer>) {
+    this.role = role;
+    if (role === "S") return;
+
+    this.createPieces();
+  }
+
+  createPieces() {
+    this.pieceIds[this.role].forEach(id =>
+      this.pieces.push(new CheckersPiece(id, this.role as "B" | "W"))
+    );
+  }
+
+  resetPieces() {
+    this.pieces.forEach(p => p.reset());
+  }
+
   createRandomRoom(): RandomRoom {
     const room = new RandomRoom(this);
     console.log(this.name, "created random room", room.id.slice(0, 6));
     this.room = room;
     this.socket.join(room.id);
-    this.role = "W";
+    this.assignRole("W");
     return room;
   }
 
@@ -44,7 +69,7 @@ export class CheckersUser {
     room.players.push(this);
     this.room = room;
     this.socket.join(room.id);
-    this.role = "B";
+    this.assignRole("B");
     room.resetAll();
     return room;
   }
@@ -67,7 +92,7 @@ export class CheckersUser {
     console.log(this.name, "created named room", room.name);
     this.room = room;
     this.socket.join(room.id);
-    this.role = "W";
+    this.assignRole("W");
     this.setupGame();
     return room;
   }
@@ -89,90 +114,66 @@ export class CheckersUser {
     return room;
   }
 
-  verifyMove(from: RowCol, to: RowCol) {
-    const rows = to.row - from.row;
-    const cols = to.col - from.col;
-    const isDiagonal = Math.abs(cols) === Math.abs(rows);
-    if (!isDiagonal) return;
+  verifyMove(from: RowCol, to: RowCol): boolean {
+    const isDiagonal =
+      Math.abs(to.row - from.row) === Math.abs(to.col - from.col);
+    if (!isDiagonal) return false;
 
-    const fromId = this.idFromPosition(from);
-    const toId = this.idFromPosition(to);
-    const isEmptyTile = !this.room.gameState.tiles[toId];
-    if (!isEmptyTile) return;
+    const pieceOnTarget = this.room.findPiece(to);
+    if (pieceOnTarget) return false;
 
-    const distance = Math.abs(rows);
-    const hasCrown = this.room.gameState.crowns.includes(fromId);
-    const isForward =
-      (this.role === "W" && rows > 0) || (this.role === "B" && rows < 0);
-
-    if (distance === 1 && (isForward || hasCrown)) {
-      this.movePiece(from, to);
-      return;
-    }
-
-    const oppRole = this.role === "B" ? "W" : "B";
-    if (hasCrown) {
-      const step = (toId - fromId) / distance;
-      const skippedIds = [...Array(distance - 1)].map(
-        (_, i) => fromId + step * (i + 1)
-      );
-      const pieces = skippedIds
-        .map<CheckersPlayer>(id => this.room.gameState.tiles[id])
-        .filter(role => role);
-      if (!pieces.length) {
-        this.movePiece(from, to);
-        return;
-      }
-      if (pieces.length === 1 && pieces[0] === oppRole) {
-        this.room.removePiece(skippedIds[0]);
-        this.movePiece(from, to);
-        return;
-      }
-    }
-
-    if (!hasCrown && distance === 2) {
-      if (!isEmptyTile) return;
-
-      const col = (to.col + from.col) / 2;
-      const row = (to.row + from.row) / 2;
-      const id = this.idFromPosition({ col, row });
-      if (this.room.gameState.tiles[id] === oppRole) {
-        this.room.gameState.tiles[id] = undefined;
-        this.movePiece(from, to);
-        return;
-      }
-    }
+    const movingPiece = this.room.findPiece(from);
+    return movingPiece.crown
+      ? this.moveWithCrown(movingPiece, to)
+      : this.moveWithoutCrown(movingPiece, to);
   }
 
-  movePiece(from: RowCol, to: RowCol) {
-    const fromId = this.idFromPosition(from);
-    const toId = this.idFromPosition(to);
-    this.room.gameState.tiles[fromId] = undefined;
-    this.room.gameState.tiles[toId] = this.role;
-    console.log(
-      "Piece moved from",
-      fromId,
-      "to",
-      toId,
-      "Player:",
-      this.name,
-      "Room:",
-      this.room.name || this.room.id.slice(0, 6)
-    );
-    if (this.room.gameState.crowns.includes(fromId)) {
-      const idx = this.room.gameState.crowns.findIndex(el => el === fromId);
-      this.room.gameState.crowns.splice(idx, 1, toId);
-    } else if (
-      (to.row === 0 && this.role === "B") ||
-      (to.row === 7 && this.role === "W")
-    ) {
-      this.room.gameState.crowns.push(toId);
+  moveWithoutCrown(piece: CheckersPiece, to: RowCol): boolean {
+    const rows = to.row - piece.pos.row;
+    const dist = Math.abs(rows);
+    if (dist === 1) {
+      const isForward =
+        (this.role === "W" && rows > 0) || (this.role === "B" && rows < 0);
+      return isForward ? piece.move(to) : false;
     }
-    this.room.checkResult();
+
+    if (dist === 2) {
+      const col = (to.col + piece.pos.col) / 2;
+      const row = (to.row + piece.pos.row) / 2;
+      const opponentRole = this.role === "W" ? "B" : "W";
+      const jumpedPiece = this.room.findPiece({ row, col }, opponentRole);
+      if (!jumpedPiece) return false;
+
+      jumpedPiece.remove();
+      return piece.move(to);
+    }
+
+    return false;
   }
 
-  private idFromPosition(position: RowCol): number {
-    return position.row * 8 + position.col + 1;
+  moveWithCrown(piece: CheckersPiece, to: RowCol): boolean {
+    const rows = to.row - piece.pos.row;
+    const dist = Math.abs(rows);
+
+    if (dist === 1) return piece.move(to);
+
+    const jumpedPieces = [...Array(dist - 1)]
+      .map((_, i) => {
+        const row = piece.pos.row + (i + 1) * Math.sign(to.row - piece.pos.row);
+        const col = piece.pos.col + (i + 1) * Math.sign(to.col - piece.pos.col);
+        return this.room.findPiece({ row, col });
+      })
+      .filter(piece => piece);
+
+    if (jumpedPieces.length === 0) return piece.move(to);
+    if (jumpedPieces.length === 1) {
+      const opponentRole = this.role === "W" ? "B" : "W";
+      if (jumpedPieces[0].role === opponentRole) {
+        jumpedPieces[0].remove();
+        return piece.move(to);
+      }
+    }
+    return false;
   }
 
   sendMessage(event: string) {

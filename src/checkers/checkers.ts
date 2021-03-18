@@ -49,8 +49,11 @@ export const manageCheckers = (io: Server, socket: Socket, name: string) => {
   });
 
   socket.on("piece-moved", (data: { moveFrom: RowCol; moveTo: RowCol }) => {
-    player.verifyMove(data.moveFrom, data.moveTo);
-    io.to(player.room.id).emit("game-state", player.room.gameState);
+    const moved = player.verifyMove(data.moveFrom, data.moveTo);
+    if (moved) {
+      player.room.checkResult();
+      player.room.updateGameState();
+    }
   });
 
   socket.on("disconnecting", () => {
