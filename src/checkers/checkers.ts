@@ -9,7 +9,6 @@ export const manageCheckers = (io: Server, socket: Socket, name: string) => {
 
   socket.on("random-room", () => {
     console.log(player.name, "wants to play a random room");
-    player.joinOption = "random-room";
     player.findRandomRoom();
     player.setupGame();
     if (!player.room.gameState.waitingForOpponent) player.room.startGame();

@@ -281,8 +281,11 @@ abstract class Room {
 }
 
 export class RandomRoom extends Room {
-  constructor(server: Server) {
-    super(server);
+  constructor(player: CheckersUser) {
+    super(player.io);
+    this.players.push(player);
+    this.gameState.waitingForOpponent = true;
+    randomRooms.push(this);
   }
 
   handleDisconnection(player: CheckersUser) {
@@ -302,8 +305,11 @@ export class RandomRoom extends Room {
 }
 
 export class NamedRoom extends Room {
-  constructor(server: Server, name: string) {
-    super(server, name);
+  constructor(player: CheckersUser, name: string) {
+    super(player.io, name);
+    this.players.push(player);
+    this.gameState.waitingForOpponent = true;
+    namedRooms.push(this);
   }
 
   addSpectator(player: CheckersUser) {

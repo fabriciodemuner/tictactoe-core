@@ -30,14 +30,11 @@ export class CheckersUser {
   }
 
   createRandomRoom(): RandomRoom {
-    const room = new RandomRoom(this.io);
+    const room = new RandomRoom(this);
     console.log(this.name, "created random room", room.id.slice(0, 6));
-    room.gameState.waitingForOpponent = true;
-    room.players.push(this);
     this.room = room;
     this.socket.join(room.id);
     this.role = "W";
-    randomRooms.push(room);
     return room;
   }
 
@@ -53,6 +50,7 @@ export class CheckersUser {
   }
 
   findRandomRoom(): RandomRoom {
+    this.joinOption = "random-room";
     const room = randomRooms.find(r => r.players.length !== 2);
     return room ? this.joinRandomRoom(room) : this.createRandomRoom();
   }
@@ -65,14 +63,11 @@ export class CheckersUser {
     }
 
     this.joinOption = "create-room";
-    const room = new NamedRoom(this.io, roomName);
+    const room = new NamedRoom(this, roomName);
     console.log(this.name, "created named room", room.name);
-    room.gameState.waitingForOpponent = true;
-    room.players.push(this);
     this.room = room;
     this.socket.join(room.id);
     this.role = "W";
-    namedRooms.push(room);
     this.setupGame();
     return room;
   }
