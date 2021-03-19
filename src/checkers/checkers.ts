@@ -49,9 +49,20 @@ export const manageCheckers = (io: Server, socket: Socket, name: string) => {
   });
 
   socket.on("piece-moved", (data: { moveFrom: RowCol; moveTo: RowCol }) => {
-    const moved = player.verifyMove(data.moveFrom, data.moveTo);
-    if (moved) {
+    console.log("verify move", data.moveFrom, data.moveTo);
+    const result = player.verifyMove(data.moveFrom, data.moveTo);
+
+    if (result === "moved") {
       player.room.checkResult();
+      player.room.updateGameState();
+    }
+
+    if (result === "jumped") {
+      const playerCanJump = player.canJump().length !== 0;
+      if (!playerCanJump) {
+        player.setLastJumpPosition(undefined);
+        player.room.checkResult();
+      }
       player.room.updateGameState();
     }
   });

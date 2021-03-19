@@ -13,6 +13,7 @@ export class CheckersUser {
   role: Role<CheckersPlayer>;
   joinOption: JoinOption;
   pieces: CheckersPiece[];
+  private lastJumpPosition: RowCol;
 
   constructor(server: Server, socket: Socket, name: string) {
     this.id = socket.id;
@@ -114,44 +115,126 @@ export class CheckersUser {
     return room;
   }
 
-  verifyMove(from: RowCol, to: RowCol): boolean {
+  verifyMove(from: RowCol, to: RowCol): "moved" | "jumped" {
     const isDiagonal =
       Math.abs(to.row - from.row) === Math.abs(to.col - from.col);
-    if (!isDiagonal) return false;
+    if (!isDiagonal) return;
 
     const pieceOnTarget = this.room.findPiece(to);
-    if (pieceOnTarget) return false;
+    if (pieceOnTarget) return;
 
+    const piecesCanJump = this.canJump();
     const movingPiece = this.room.findPiece(from);
-    return movingPiece.crown
-      ? this.moveWithCrown(movingPiece, to)
-      : this.moveWithoutCrown(movingPiece, to);
+
+    const playerMustJump = piecesCanJump.length !== 0;
+    if (!playerMustJump) {
+      this.lastJumpPosition = undefined;
+      return movingPiece.crown
+        ? this.moveWithCrown(movingPiece, to)
+        : this.moveWithoutCrown(movingPiece, to);
+    }
+
+    const pieceCanJump = piecesCanJump.includes(movingPiece);
+    if (pieceCanJump) {
+      if (this.lastJumpPosition && this.getLastJumpPiece() !== movingPiece) {
+        return;
+      }
+      const result = movingPiece.crown
+        ? this.jumpWithCrown(movingPiece, to)
+        : this.jumpWithoutCrown(movingPiece, to);
+      if (result) this.lastJumpPosition = to;
+      return result;
+    }
   }
 
-  moveWithoutCrown(piece: CheckersPiece, to: RowCol): boolean {
+  canJump(): CheckersPiece[] {
+    return this.pieces.filter(
+      p =>
+        p.alive &&
+        this.pieceCanJump(p) &&
+        (!this.lastJumpPosition || p.id === this.getLastJumpPiece().id)
+    );
+  }
+
+  pieceCanJump(piece: CheckersPiece): boolean {
+    const opponentRole = this.room.findOpponent(this.role as "B" | "W").role;
+    const steps = [
+      { row: -1, col: -1 },
+      { row: -1, col: 1 },
+      { row: 1, col: 1 },
+      { row: 1, col: -1 },
+    ];
+    if (!piece.crown) {
+      return steps.some(step => {
+        let row = piece.pos.row + step.row;
+        let col = piece.pos.col + step.col;
+        const oppPiece = this.room.findPiece(
+          { row, col },
+          opponentRole as "B" | "W"
+        );
+        if (!oppPiece) return false;
+
+        row = piece.pos.row + 2 * step.row;
+        col = piece.pos.col + 2 * step.col;
+        const offBoundaries = this.isOffBoundaries({ row, col });
+        if (offBoundaries) return false;
+
+        const nextPiece = this.room.findPiece({ row, col });
+        return !nextPiece;
+      });
+    } else {
+      return steps.some(step => {
+        let i = 1;
+        let offBoundaries = false;
+        while (!offBoundaries) {
+          let row = piece.pos.row + i * step.row;
+          let col = piece.pos.col + i * step.col;
+          offBoundaries = this.isOffBoundaries({ row, col });
+
+          const foundPiece = this.room.findPiece({ row, col });
+          if (foundPiece && foundPiece.role === piece.role) {
+            return false;
+          }
+          if (foundPiece && foundPiece.role !== piece.role) {
+            row = piece.pos.row + (i + 1) * step.row;
+            col = piece.pos.col + (i + 1) * step.col;
+            offBoundaries = this.isOffBoundaries({ row, col });
+            if (offBoundaries) return false;
+
+            const nextPiece = this.room.findPiece({ row, col });
+            return !nextPiece;
+          }
+          i++;
+        }
+      });
+    }
+  }
+
+  moveWithoutCrown(piece: CheckersPiece, to: RowCol): "moved" {
     const rows = to.row - piece.pos.row;
     const dist = Math.abs(rows);
-    if (dist === 1) {
-      const isForward =
-        (this.role === "W" && rows > 0) || (this.role === "B" && rows < 0);
-      return isForward ? piece.move(to) : false;
-    }
-
-    if (dist === 2) {
-      const col = (to.col + piece.pos.col) / 2;
-      const row = (to.row + piece.pos.row) / 2;
-      const opponentRole = this.role === "W" ? "B" : "W";
-      const jumpedPiece = this.room.findPiece({ row, col }, opponentRole);
-      if (!jumpedPiece) return false;
-
-      jumpedPiece.remove();
-      return piece.move(to);
-    }
-
-    return false;
+    if (dist !== 1) return;
+    const isForward =
+      (this.role === "W" && rows > 0) || (this.role === "B" && rows < 0);
+    if (isForward) return piece.move(to);
   }
 
-  moveWithCrown(piece: CheckersPiece, to: RowCol): boolean {
+  jumpWithoutCrown(piece: CheckersPiece, to: RowCol): "jumped" {
+    const rows = to.row - piece.pos.row;
+    const dist = Math.abs(rows);
+
+    if (dist !== 2) return;
+
+    const col = (to.col + piece.pos.col) / 2;
+    const row = (to.row + piece.pos.row) / 2;
+    const opponentRole = this.role === "W" ? "B" : "W";
+    const jumpedPiece = this.room.findPiece({ row, col }, opponentRole);
+    if (!jumpedPiece) return;
+
+    return piece.jump(to, jumpedPiece);
+  }
+
+  moveWithCrown(piece: CheckersPiece, to: RowCol): "moved" {
     const rows = to.row - piece.pos.row;
     const dist = Math.abs(rows);
 
@@ -165,18 +248,45 @@ export class CheckersUser {
       })
       .filter(piece => piece);
 
-    if (jumpedPieces.length === 0) return piece.move(to);
-    if (jumpedPieces.length === 1) {
-      const opponentRole = this.role === "W" ? "B" : "W";
-      if (jumpedPieces[0].role === opponentRole) {
-        jumpedPieces[0].remove();
-        return piece.move(to);
-      }
+    if (jumpedPieces.length) return;
+    return piece.move(to);
+  }
+
+  jumpWithCrown(piece: CheckersPiece, to: RowCol): "jumped" {
+    const rows = to.row - piece.pos.row;
+    const dist = Math.abs(rows);
+
+    if (dist === 1) return;
+
+    const jumpedPieces = [...Array(dist - 1)]
+      .map((_, i) => {
+        const row = piece.pos.row + (i + 1) * Math.sign(to.row - piece.pos.row);
+        const col = piece.pos.col + (i + 1) * Math.sign(to.col - piece.pos.col);
+        return this.room.findPiece({ row, col });
+      })
+      .filter(piece => piece);
+
+    if (jumpedPieces.length !== 1) return;
+
+    const opponentRole = this.role === "W" ? "B" : "W";
+    if (jumpedPieces[0].role === opponentRole) {
+      return piece.jump(to, jumpedPieces[0]);
     }
-    return false;
   }
 
   sendMessage(event: string) {
     this.socket.emit(event);
+  }
+
+  private isOffBoundaries(pos: RowCol): boolean {
+    return Math.max(pos.row, pos.col) > 7 || Math.min(pos.row, pos.col) < 0;
+  }
+
+  private getLastJumpPiece(): CheckersPiece {
+    return this.lastJumpPosition && this.room.findPiece(this.lastJumpPosition);
+  }
+
+  setLastJumpPosition(pos: RowCol) {
+    this.lastJumpPosition = pos;
   }
 }

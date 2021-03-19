@@ -15,11 +15,18 @@ export class CheckersPiece {
     this.alive = true;
   }
 
-  move(to: RowCol): boolean {
+  move(to: RowCol): "moved" {
     console.log(this.role, "piece moved from", this.pos, "to", to);
     this.pos = to;
     if (this.isCrownHead()) this.crown = true;
-    return true;
+    return "moved";
+  }
+
+  jump(to: RowCol, piece: CheckersPiece): "jumped" {
+    console.log(piece.role, "piece removed from", piece.pos);
+    this.move(to);
+    piece.remove();
+    return "jumped";
   }
 
   reset() {
@@ -28,7 +35,7 @@ export class CheckersPiece {
     this.alive = true;
   }
 
-  remove() {
+  private remove() {
     this.alive = false;
   }
 
