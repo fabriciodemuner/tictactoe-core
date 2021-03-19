@@ -77,15 +77,12 @@ abstract class Room {
   }
 
   checkResult() {
-    const black = this.players.find(p => p.role === "B").pieces.length;
-    const white = this.players.find(p => p.role === "W").pieces.length;
-
-    const winner: CheckersPlayer = !black ? "W" : !white ? "B" : undefined;
-    if (!winner) return this.togglePlayer();
+    const opponent = this.findOpponent(this.gameState.currentPlayer);
+    if (opponent.pieces.filter(p => p.alive).length) return this.togglePlayer();
 
     this.gameState.gameOver = true;
-    this.gameState.result = winner;
-    this.addPoint(winner);
+    this.gameState.result = this.gameState.currentPlayer;
+    this.addPoint(this.gameState.currentPlayer);
   }
 
   updateGameState() {
