@@ -1,31 +1,31 @@
 import { nanoid } from "nanoid";
 import { Server } from "socket.io";
-import { Player, Role } from "./Player";
+import { Result, TicTacToePlayer } from "types";
+import { TicTacToeUser } from "./Player";
 
-type Result = Role | "D";
-export type GameState = {
+type GameState = {
   score: {
     O: number;
     X: number;
     D: number;
   };
-  currentPlayer: Role;
-  firstPlayer: Role;
+  currentPlayer: TicTacToePlayer;
+  firstPlayer: TicTacToePlayer;
   gameOver: boolean;
   freeze: boolean;
   surrender: boolean;
   waitingForOpponent: boolean;
-  result: Result;
+  result: Result<TicTacToePlayer>;
   tiles: {
-    1: Role;
-    2: Role;
-    3: Role;
-    4: Role;
-    5: Role;
-    6: Role;
-    7: Role;
-    8: Role;
-    9: Role;
+    1: TicTacToePlayer;
+    2: TicTacToePlayer;
+    3: TicTacToePlayer;
+    4: TicTacToePlayer;
+    5: TicTacToePlayer;
+    6: TicTacToePlayer;
+    7: TicTacToePlayer;
+    8: TicTacToePlayer;
+    9: TicTacToePlayer;
   };
 };
 
@@ -63,8 +63,8 @@ abstract class Room {
   readonly name: string;
   readonly type: "random" | "created";
   readonly io: Server;
-  players: Player[];
-  spectators: Player[];
+  players: TicTacToeUser[];
+  spectators: TicTacToeUser[];
   gameState: GameState;
   newGameResponses: string[] = [];
 
@@ -101,7 +101,7 @@ abstract class Room {
     this.io.to(this.id).emit(event);
   }
 
-  addPoint(p: Result) {
+  addPoint(p: Result<TicTacToePlayer>) {
     this.gameState.score[p]++;
   }
 
@@ -110,7 +110,7 @@ abstract class Room {
       this.gameState.currentPlayer === "O" ? "X" : "O";
   }
 
-  checkResult(id: number, role: Role) {
+  checkResult(id: number, role: TicTacToePlayer) {
     this.gameState.tiles[id] = role;
     const playedArray = Object.keys(this.gameState.tiles)
       .filter(idx => this.gameState.tiles[idx] === role)
@@ -145,7 +145,7 @@ abstract class Room {
 
   surrender(id: string) {
     const opponent = this.players.find(p => p.id !== id);
-    const result = opponent.role;
+    const result = opponent.role as TicTacToePlayer;
     this.addPoint(result);
     this.gameState.freeze = true;
     this.messagePlayer(id, "freeze");
@@ -166,7 +166,8 @@ abstract class Room {
     this.gameState.tiles = JSON.parse(JSON.stringify(initialGameState.tiles));
     this.gameState.result = initialGameState.result;
     this.gameState.gameOver = initialGameState.gameOver;
-    const nextPlayer: Role = this.gameState.firstPlayer === "O" ? "X" : "O";
+    const nextPlayer: TicTacToePlayer =
+      this.gameState.firstPlayer === "O" ? "X" : "O";
     this.gameState.firstPlayer = nextPlayer;
     this.gameState.currentPlayer = nextPlayer;
     this.gameState.surrender = initialGameState.surrender;
@@ -188,13 +189,13 @@ export class RandomRoom extends Room {
     super(server);
   }
 
-  handleDisconnection(player: Player) {
-    const roomIdx = randomRooms.findIndex(r => r.id === player.room.id);
+  handleDisconnection(player: TicTacToeUser) {
+    const roomIdx = randomRooms.findIndex(r => r.id === this.id);
     randomRooms.splice(roomIdx, 1);
-    const opponent = player.room.players.find(p => p.id !== player.id);
+    const opponent = this.players.find(p => p.id !== player.id);
     if (!opponent) return;
 
-    opponent.socket.leave(player.room.id);
+    opponent.socket.leave(this.id);
     const oppNewRoom = opponent.findRandomRoom();
     opponent.setupGame();
     if (oppNewRoom.players.length === 2) {
@@ -209,12 +210,12 @@ export class NamedRoom extends Room {
     super(server, name);
   }
 
-  addSpectator(player: Player) {
+  addSpectator(player: TicTacToeUser) {
     this.spectators.push(player);
     player.role = "S";
   }
 
-  addPlayer(player: Player) {
+  addPlayer(player: TicTacToeUser) {
     this.players.push(player);
     const opponent = this.players.find(p => p.id !== player.id);
     if (opponent) {
@@ -228,31 +229,33 @@ export class NamedRoom extends Room {
 
   moveSpectatorsQueue() {
     const nextPlayer = this.spectators.shift();
+    if (!nextPlayer) return;
+
     this.addPlayer(nextPlayer);
-    console.log("Player assigned:", nextPlayer.role, nextPlayer.name);
     nextPlayer.setupGame();
-    this.resetAll();
   }
 
-  handleDisconnection(player: Player) {
-    if (this.spectators.includes(player)) {
+  handleDisconnection(player: TicTacToeUser) {
+    if (player.role === "S") {
       const idx = this.spectators.indexOf(player);
       this.spectators.splice(idx, 1);
       return;
     }
 
-    const idx = this.players.indexOf(player);
-    this.players.splice(idx, 1);
-    if (!this.players.length) {
+    if (this.players.length === 1) {
       this.deleteRoom();
       return;
     }
 
-    this.spectators.length ? this.moveSpectatorsQueue() : this.resetAll();
+    const idx = this.players.indexOf(player);
+    this.players.splice(idx, 1);
+    this.moveSpectatorsQueue();
+    this.resetAll();
   }
 
   deleteRoom() {
     const idx = namedRooms.indexOf(this);
     namedRooms.splice(idx, 1);
+    console.log("Room deleted:", this.name);
   }
 }

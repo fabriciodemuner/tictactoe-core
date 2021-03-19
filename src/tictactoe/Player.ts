@@ -1,24 +1,22 @@
 import { Server, Socket } from "socket.io";
-import { GameName } from "./main";
+import { GameName, JoinOption, Role, TicTacToePlayer } from "../types";
 import { NamedRoom, namedRooms, RandomRoom, randomRooms } from "./Room";
 
-export type Role = "O" | "X" | "S";
-type JoinOption = "random-room" | "create-room" | "join-room";
-
-export class Player {
-  id: string;
-  name: string;
-  game: GameName;
+export class TicTacToeUser {
+  readonly id: string;
+  readonly name: string;
+  readonly game: GameName = "TicTacToe";
+  readonly io: Server;
+  readonly socket: Socket;
   room: NamedRoom | RandomRoom;
-  role: Role;
-  io: Server;
-  socket: Socket;
+  role: Role<TicTacToePlayer>;
   joinOption: JoinOption;
 
-  constructor(id: string, server: Server, socket: Socket) {
-    this.id = id;
+  constructor(server: Server, socket: Socket, name: string) {
+    this.id = socket.id;
     this.io = server;
     this.socket = socket;
+    this.name = name;
   }
 
   setupGame() {
